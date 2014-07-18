@@ -5,6 +5,7 @@ import (
 	"math"
 	"regexp"
 	"strconv"
+	"unicode/utf8"
 )
 
 var siPrefixTable = map[float64]string{
@@ -59,14 +60,14 @@ func ComputeSI(input float64) (float64, string) {
 	if input == 0 {
 		return 0, ""
 	}
-	exponent := math.Floor(logn(input, 10))
+	exponent := math.Floor(math.Log10(input))
 	exponent = math.Floor(exponent/3) * 3
 
 	value := input / math.Pow(10, exponent)
 
 	// Handle special case where value is exactly 1000.0
 	// Should return 1M instead of 1000k
-	if value == 1000.0 {
+	if value >= 1000.0 {
 		exponent += 3
 		value = input / math.Pow(10, exponent)
 	}
@@ -84,6 +85,17 @@ func ComputeSI(input float64) (float64, string) {
 func SI(input float64, unit string) string {
 	value, prefix := ComputeSI(input)
 	return Ftoa(value) + prefix + unit
+}
+
+// SIWidth returns a string with the specified width.
+// Can optionally remove trailing zeros.
+//
+// e.g. SIWidth(2.2345e-12, "F", 5, false) -> 2.2pF
+func SIWidth(input float64, unit string, width int, stripTrailing bool) string {
+	value, prefix := ComputeSI(input)
+	width -= utf8.RuneCount([]byte(unit))   // leave room for unit
+	width -= utf8.RuneCount([]byte(prefix)) // leave room for prefix, handle μ
+	return FtoaWidth(value, width, stripTrailing) + prefix + unit
 }
 
 var errInvalid = errors.New("invalid input")
